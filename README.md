@@ -203,11 +203,9 @@ Both SDKs wrap the same ONES Spectrum-X API. For raw curl examples, see:
 
 | ONES API Version | Python SDK | Go SDK |
 |------------------|------------|---------|
-| 4.2 | ✅ v0.1.0 | ✅ v1.0.0 |
-| 4.1 | ⚠️ Partial | ⚠️ Partial |
-| 4.0 | ❌ | ❌ |
+| 4.2.1 | ✅ v0.1.0 | ✅ v1.0.0 |
 
-Both SDKs target **ONES 4.2**. Some features (e.g., `transitVlanId`, `nsVniId`) are 4.2-specific and may not work on older versions.
+Both SDKs target **ONES 4.2.1**. 
 
 ---
 
