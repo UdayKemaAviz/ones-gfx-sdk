@@ -1,0 +1,196 @@
+Tenant Create:
+SYNC:
+ curl -X POST http://localhost:8787/fabrics/UI-CIT-fabric482/tenants \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenantName": "tenant2",
+    "description":"Testing workloads",
+    "maxGpusAllowed":8,
+    "shared":false
+  }'
+{"status":"success","message":"Tenant created successfully.","data":"{\"tenant\":{\"id\":2,\"description\":\"Testing workloads\",\"name\":\"tenant2\",\"maxGpusAllowed\":8,\"gpusAllocated\":0,\"allotedGpus\":\"\",\"vniId\":4002,\"vlanId\":102,\"transitVlanId\":503,\"vlanVniId\":8002,\"vlanSubnetCPU\":\"10.2.12.160/27\",\"vlanSubnetStorage\":\"10.3.12.160/27\",\"fabricName\":\"UI-CIT-fabric482\",\"config_status\":\"2\",\"createdAt\":1776511946530,\"updatedAt\":1776511946536,\"nsVniId\":6002,\"networks\":[\"UI-CIT-fabric482-north-south\",\"UI-CIT-fabric482-east-west\"],\"tags\":[{\"east-west-vni\":\"vniId = 4002\"},{\"north-south-vlan\":\"vlanId = 102\"}],\"vnets\":{\"name\":\"tenant2-UI-CIT-fabric482-north-south\",\"description\":\"Tenant tenant2 for North-South VNet\",\"tenant IP Pool\":{\"gateway\":null,\"subnet\":null}}}}"}
+
+
+
+
+
+Async Create JOB polling : 
+
+curl -X POST http://localhost:8787/fabrics/UI-CIT-fabric482/tenants -H "Content-Type: application/json" -H "Prefer: respond-async" -d '{
+    "tenantName":"tenantH",
+    "description":"Testing workloads",
+    "maxGpusAllowed":8,
+    "shared":false
+  }'
+{"status":"success","message":"Tenant creation accepted.","data":{"operationId":"TENANT_1776512073596_d4f8_e3b2a93b_96","status":"PENDING"}}
+
+
+Polling : /operations/{opID}
+
+curl http://localhost:8787/operations/TENANT_1776512073596_d4f8_e3b2a93b_96
+{"id":"TENANT_1776512073596_d4f8_e3b2a93b_96","type":"TENANT_CREATE","status":"SUCCESS","createdAt":"2026-04-18T11:34:33.596926Z","updatedAt":"2026-04-18T11:34:33.614592Z","completedAt":"2026-04-18T11:34:33.614591Z","progress":100,"errorMessage":null,"result":"{\"tenant\":{\"id\":3,\"description\":\"Testing workloads\",\"name\":\"tenantH\",\"maxGpusAllowed\":8,\"gpusAllocated\":0,\"allotedGpus\":\"\",\"vniId\":4003,\"vlanId\":103,\"transitVlanId\":504,\"vlanVniId\":8003,\"vlanSubnetCPU\":\"10.2.12.192/27\",\"vlanSubnetStorage\":\"10.3.12.192/27\",\"fabricName\":\"UI-CIT-fabric482\",\"config_status\":\"2\",\"createdAt\":1776512073606,\"updatedAt\":1776512073610,\"nsVniId\":6003,\"networks\":[\"UI-CIT-fabric482-north-south\",\"UI-CIT-fabric482-east-west\"],\"tags\":[{\"east-west-vni\":\"vniId = 4003\"},{\"north-south-vlan\":\"vlanId = 103\"}],\"vnets\":{\"name\":\"tenantH-UI-CIT-fabric482-north-south\",\"description\":\"Tenant tenantH for North-South VNet\",\"tenant IP Pool\":{\"gateway\":null,\"subnet\":null}}}}","idempotencyKey":null,"cachedResponse":"{\"status\":\"success\",\"message\":\"Operation already completed.\",\"data\":{\"operationId\":\"TENANT_1776512073596_d4f8_e3b2a93b_96\",\"status\":\"SUCCESS\",\"result\":\"{\\\"tenant\\\":{\\\"id\\\":3,\\\"description\\\":\\\"Testing workloads\\\",\\\"name\\\":\\\"tenantH\\\",\\\"maxGpusAllowed\\\":8,\\\"gpusAllocated\\\":0,\\\"allotedGpus\\\":\\\"\\\",\\\"vniId\\\":4003,\\\"vlanId\\\":103,\\\"transitVlanId\\\":504,\\\"vlanVniId\\\":8003,\\\"vlanSubnetCPU\\\":\\\"10.2.12.192/27\\\",\\\"vlanSubnetStorage\\\":\\\"10.3.12.192/27\\\",\\\"fabricName\\\":\\\"UI-CIT-fabric482\\\",\\\"config_status\\\":\\\"2\\\",\\\"createdAt\\\":1776512073606,\\\"updatedAt\\\":1776512073610,\\\"nsVniId\\\":6003,\\\"networks\\\":[\\\"UI-CIT-fabric482-north-south\\\",\\\"UI-CIT-fabric482-east-west\\\"],\\\"tags\\\":[{\\\"east-west-vni\\\":\\\"vniId = 4003\\\"},{\\\"north-south-vlan\\\":\\\"vlanId = 103\\\"}],\\\"vnets\\\":{\\\"name\\\":\\\"tenantH-UI-CIT-fabric482-north-south\\\",\\\"description\\\":\\\"Tenant tenantH for North-South VNet\\\",\\\"tenant IP Pool\\\":{\\\"gateway\\\":null,\\\"subnet\\\":null}}}}\"}}","httpStatusCode":201,"tenantName":"tenantH","fabricName":"UI-CIT-fabric482"}
+
+
+Async with Webhooks:
+
+
+curl -X POST http://localhost:8787/fabrics/UI-CIT-fabric482/tenants -H "Content-Type: application/json" -H "Prefer: respond-async" -d '{
+    "tenantName":"tenant4",
+    "description":"Testing workloads",
+    "maxGpusAllowed":8,
+    "shared":false,
+    "enableWebhook": true,
+    "webhookUrl": "http://10.4.5.76:8787/test/webhook-receiver",
+    "webhookEvents": ["tenant.create"]
+  }'
+{"status":"success","message":"Tenant creation accepted.","data":{"operationId":"TENANT_1776512380980_d4f8_90129dc1_3b","status":"PENDING","webhookRegistered":true}}
+
+
+
+
+
+Webhook-Reciever:
+
+data:{"message":"Connected to webhook stream","timestamp":"2026-04-18T11:39:09.626810427Z","pendingWebhooks":1}
+
+event:webhook
+data:{"receivedAt":"2026-04-18T11:39:41.013162392Z","deliveryId":"3eccb6d9-3be8-4b8f-80fa-979979dda552","eventType":"TENANT_CREATE","operationId":"TENANT_1776512380980_d4f8_90129dc1_3b","signatureProvided":true,"signatureValid":true,"payload":{"operationId":"TENANT_1776512380980_d4f8_90129dc1_3b","type":"TENANT_CREATE","status":"SUCCESS","tenantName":"tenant4","fabricName":"UI-CIT-fabric482","result":"{\"tenant\":{\"id\":4,\"description\":\"Testing workloads\",\"name\":\"tenant4\",\"maxGpusAllowed\":8,\"gpusAllocated\":0,\"allotedGpus\":\"\",\"vniId\":4004,\"vlanId\":104,\"transitVlanId\":505,\"vlanVniId\":8004,\"vlanSubnetCPU\":\"10.2.12.224/27\",\"vlanSubnetStorage\":\"10.3.12.224/27\",\"fabricName\":\"UI-CIT-fabric482\",\"config_status\":\"2\",\"createdAt\":1776512380990,\"updatedAt\":1776512380998,\"nsVniId\":6004,\"networks\":[\"UI-CIT-fabric482-north-south\",\"UI-CIT-fabric482-east-west\"],\"tags\":[{\"east-west-vni\":\"vniId = 4004\"},{\"north-south-vlan\":\"vlanId = 104\"}],\"vnets\":{\"name\":\"tenant4-UI-CIT-fabric482-north-south\",\"description\":\"Tenant tenant4 for North-South VNet\",\"tenant IP Pool\":{\"gateway\":null,\"subnet\":null}}}}","completedAt":"2026-04-18T11:39:41.003015884Z","progress":100}}
+
+
+Tenant-Delete:
+
+SYNC:
+
+curl -X DELETE http://localhost:8787/fabrics/Fab101/tenants/tenant1 -H "Content-Type: application/json" -H "Prefer: respond-sync" 
+
+{"status":"success","message":"Tenant deleted successfully."}
+
+ASYNC:
+curl -X DELETE http://localhost:8787/fabrics/Fab101/tenants/tenant2 -H "Content-Type: application/json" -H "Prefer: respond-async" 
+
+{"status":"success","message":"Tenant deletion accepted.","data":{"operationId":"TENANT_1776521012631_d4f8_1c89126c_ee","status":"PENDING"}}
+
+Job polling : 
+curl http://localhost:8787/operations/TENANT_1776521012631_d4f8_1c89126c_ee
+
+{"id":"TENANT_1776521012631_d4f8_1c89126c_ee","type":"TENANT_DELETE","status":"SUCCESS","createdAt":"2026-04-18T14:03:32.632113Z","updatedAt":"2026-04-18T14:04:32.963777Z","completedAt":"2026-04-18T14:04:32.963479Z","progress":100,"errorMessage":null,"result":"Tenant 'tenant2' in fabric 'Fab101' deleted successfully.","idempotencyKey":null,"cachedResponse":"{\"status\":\"success\",\"message\":\"Operation already completed.\",\"data\":{\"operationId\":\"TENANT_1776521012631_d4f8_1c89126c_ee\",\"status\":\"SUCCESS\",\"result\":\"Tenant 'tenant2' in fabric 'Fab101' deleted successfully.\"}}","httpStatusCode":200,"tenantName":"tenant2","fabricName":"Fab101"}
+
+With Webhooks:
+
+curl -X DELETE http://localhost:8787/fabrics/Fab101/tenants/tenant3 -H "Content-Type: application/json" -H "Prefer: respond-async" -d '{
+    "enableWebhook": true,
+    "webhookUrl": "http://10.4.5.76:8787/test/webhook-receiver",
+    "webhookEvents": ["tenant.delete"]
+  }'
+{"status":"success","message":"Tenant deletion accepted.","data":{"operationId":"TENANT_1776521210967_d4f8_e4dd2615_17","status":"PENDING","webhookRegistered":true}}
+
+Webhook Receiver:
+
+data:{"pendingWebhooks":1,"timestamp":"2026-04-18T14:06:27.728136988Z","message":"Connected to webhook stream"}
+
+event:webhook
+data:{"receivedAt":"2026-04-18T14:07:51.323988821Z","deliveryId":"7b89ced3-d032-4828-84c5-037b883118b4","eventType":"TENANT_DELETE","operationId":"TENANT_1776521210967_d4f8_e4dd2615_17","signatureProvided":true,"signatureValid":true,"payload":{"operationId":"TENANT_1776521210967_d4f8_e4dd2615_17","type":"TENANT_DELETE","status":"SUCCESS","tenantName":"tenant3","fabricName":"Fab101","result":"Tenant 'tenant3' in fabric 'Fab101' deleted successfully.","completedAt":"2026-04-18T14:07:51.312252490Z","progress":100}}
+
+GPU Update ADD : 
+SYNC : 
+curl -X PATCH http://localhost:8787/fabrics/Fab101/tenants/tenant1 -H "Content-Type: application/json" -H "Prefer: respond-sync" -d '{
+  "operation": "ADD",
+  "servers": [
+    { "serverName": "hgx-su00-h00", "shared": false }
+  ]
+}'
+{"status":"success","message":"GPU update processed successfully."}
+
+ASYNC
+curl -X PATCH http://localhost:8787/fabrics/Fab101/tenants/tenant1 -H "Content-Type: application/json" -H "Prefer: respond-async" -d '{
+  "operation": "ADD",
+  "servers": [
+    { "serverName": "hgx-su00-h01", "shared": false }
+  ]
+}'
+{"status":"success","message":"GPU update accepted.","data":{"operationId":"GPU_1776522193139_d4f8_aaa3874c_57","status":"PENDING","operationType":"GPU_ALLOCATE"}}
+
+
+Polling:
+
+
+curl http://localhost:8787/operations/GPU_1776522193139_d4f8_aaa3874c_57 
+{"id":"GPU_1776522193139_d4f8_aaa3874c_57","type":"GPU_ALLOCATE","status":"RUNNING","createdAt":"2026-04-18T14:23:13.140225Z","updatedAt":"2026-04-18T14:23:13.147008Z","completedAt":null,"progress":10,"errorMessage":null,"result":null,"idempotencyKey":null,"cachedResponse":null,"httpStatusCode":null,"tenantName":"tenant1","fabricName":"Fab101"}
+
+curl http://localhost:8787/operations/GPU_1776522193139_d4f8_aaa3874c_57 
+{"id":"GPU_1776522193139_d4f8_aaa3874c_57","type":"GPU_ALLOCATE","status":"SUCCESS","createdAt":"2026-04-18T14:23:13.140225Z","updatedAt":"2026-04-18T14:28:40.762189Z","completedAt":"2026-04-18T14:28:40.762181Z","progress":100,"errorMessage":null,"result":"GPU update processed successfully.","idempotencyKey":null,"cachedResponse":"{\"status\":\"success\",\"message\":\"Operation already completed.\",\"data\":{\"operationId\":\"GPU_1776522193139_d4f8_aaa3874c_57\",\"status\":\"SUCCESS\",\"result\":\"GPU update processed successfully.\"}}","httpStatusCode":200,"tenantName":"tenant1","fabricName":"Fab101"}
+
+With Webhooks:
+curl -X PATCH http://localhost:8787/fabrics/Fab101/tenants/tenant1 -H "Content-Type: application/json" -H "Prefer: respond-async" -d '{
+  "operation": "ADD",
+  "servers": [
+    { "serverName": "hgx-su00-h00", "shared": false }
+  ],
+  "enableWebhook": true,
+  "webhookUrl": "http://10.4.5.76:8787/test/webhook-receiver",
+  "webhookEvents": ["tenant.allocate"]
+}'
+{"status":"success","message":"GPU update accepted.","data":{"operationId":"GPU_1776523281436_d4f8_e8a0e2a2_60","status":"PENDING","operationType":"GPU_ALLOCATE","webhookRegistered":true}}
+
+Webhook Reciever :
+data:{"pendingWebhooks":2,"timestamp":"2026-04-18T14:40:43.630373465Z","message":"Connected to webhook stream"}
+
+event:webhook
+data:{"receivedAt":"2026-04-18T14:46:50.068116296Z","deliveryId":"4cfa3440-3c98-4389-816e-9c1822f0c117","eventType":"GPU_ALLOCATE","operationId":"GPU_1776523281436_d4f8_e8a0e2a2_60","signatureProvided":true,"signatureValid":true,"payload":{"operationId":"GPU_1776523281436_d4f8_e8a0e2a2_60","type":"GPU_ALLOCATE","status":"SUCCESS","tenantName":"tenant1","fabricName":"Fab101","result":"GPU update processed successfully.","completedAt":"2026-04-18T14:46:50.058057171Z","progress":100}}
+
+
+GPU Update DELETE: 
+SYNC : 
+curl -X PATCH http://localhost:8787/fabrics/Fab101/tenants/tenant1 -H "Content-Type: application/json" -H "Prefer: respond-sync" -d '{
+  "operation": "DELETE",
+  "servers": [
+    { "serverName": "hgx-su00-h00", "shared": false }
+  ]
+}'
+
+{"status":"success","message":"GPU update processed successfully."}
+
+ASYNC:
+curl -X PATCH http://localhost:8787/fabrics/Fab101/tenants/tenant1 -H "Content-Type: application/json" -H "Prefer: respond-async" -d '{
+  "operation": "DELETE",
+  "servers": [
+    { "serverName": "hgx-su00-h01", "shared": false }
+  ]
+}'
+
+{"status":"success","message":"GPU update accepted.","data":{"operationId":"GPU_1776522595078_d4f8_320db64a_62","status":"PENDING","operationType":"GPU_DEALLOCATE"}}
+
+Polling:
+
+curl http://localhost:8787/operations/GPU_1776522595078_d4f8_320db64a_62
+{"id":"GPU_1776522595078_d4f8_320db64a_62","type":"GPU_DEALLOCATE","status":"RUNNING","createdAt":"2026-04-18T14:29:55.078409Z","updatedAt":"2026-04-18T14:29:55.083667Z","completedAt":null,"progress":10,"errorMessage":null,"result":null,"idempotencyKey":null,"cachedResponse":null,"httpStatusCode":null,"tenantName":"tenant1","fabricName":"Fab101"}
+
+curl http://localhost:8787/operations/GPU_1776522595078_d4f8_320db64a_62
+{"id":"GPU_1776522595078_d4f8_320db64a_62","type":"GPU_DEALLOCATE","status":"SUCCESS","createdAt":"2026-04-18T14:29:55.078409Z","updatedAt":"2026-04-18T14:35:24.951003Z","completedAt":"2026-04-18T14:35:24.950878Z","progress":100,"errorMessage":null,"result":"GPU update processed successfully.","idempotencyKey":null,"cachedResponse":"{\"status\":\"success\",\"message\":\"Operation already completed.\",\"data\":{\"operationId\":\"GPU_1776522595078_d4f8_320db64a_62\",\"status\":\"SUCCESS\",\"result\":\"GPU update processed successfully.\"}}","httpStatusCode":200,"tenantName":"tenant1","fabricName":"Fab101"}
+
+With webhook:
+
+curl -X PATCH http://localhost:8787/fabrics/Fab101/tenants/tenant1 -H "Content-Type: application/json" -H "Prefer: respond-async" -d '{
+  "operation": "DELETE",
+  "servers": [
+    { "serverName": "hgx-su00-h00", "shared": false }
+  ],
+  "enableWebhook": true,
+  "webhookUrl": "http://10.4.5.76:8787/test/webhook-receiver",
+  "webhookEvents": ["tenant.deallocate"]
+}'
+
+{"status":"success","message":"GPU update accepted.","data":{"operationId":"GPU_1776523896921_d4f8_1c9fce9c_ac","status":"PENDING","operationType":"GPU_DEALLOCATE","webhookRegistered":true}}
+
+
+Webhook receiver:
+
+event:webhook
+data:{"receivedAt":"2026-04-18T14:57:07.376889694Z","deliveryId":"48e0dac6-f56f-4e38-acce-7bc23c9209a5","eventType":"GPU_DEALLOCATE","operationId":"GPU_1776523896921_d4f8_1c9fce9c_ac","signatureProvided":true,"signatureValid":true,"payload":{"operationId":"GPU_1776523896921_d4f8_1c9fce9c_ac","type":"GPU_DEALLOCATE","status":"SUCCESS","tenantName":"tenant1","fabricName":"Fab101","result":"GPU update processed successfully.","completedAt":"2026-04-18T14:57:07.367789850Z","progress":100}}
+
+
+Get Tenants: But there is no Async support for this .
+
+curl http://localhost:8787/fabrics/Fab101/tenants
+
+{"tenants":[{"id":1,"description":"Testing workloads","name":"tenant1","maxGpusAllowed":8,"gpusAllocated":0,"allotedGpus":"","vniId":4001,"vlanId":101,"transitVlanId":null,"vlanVniId":8001,"vlanSubnetCPU":"10.2.12.128/27","vlanSubnetStorage":"10.3.12.128/27","fabricName":"Fab101","config_status":"1","createdAt":1776521388205,"updatedAt":1776524227352,"nsVniId":6001,"networks":["Fab101-north-south","Fab101-east-west"],"tags":[{"east-west-vni":"vniId = 4001"},{"north-south-vlan":"vlanId = 101"}],"vnets":{"name":"tenant1-Fab101-north-south","description":"Tenant tenant1 for North-South VNet","t
