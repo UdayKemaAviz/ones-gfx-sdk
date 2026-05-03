@@ -1,6 +1,6 @@
 # ONES GFX SDK
 
-Multi-language SDK for **AVIZ ONES Spectrum-X** tenant management API (v4.2).
+Multi-language SDK for **AVIZ ONES Spectrum-X** tenant management API (v4.2.1).
 
 Provides programmatic access to:
 - Tenant lifecycle management (create, read, update, delete)
