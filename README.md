@@ -70,14 +70,8 @@ tenant, err := client.Tenants.Create(ctx, fabricName, req)
 | **Async modes** | ✅ | ✅ | sync / async-poll / async-webhook |
 | **JWT auto-refresh** | ✅ | ✅ | Proactive + reactive |
 | **Timeout override** | ✅ | ✅ | Per-call override for long operations |
-| **CLI with JSON output** | ✅ | 🚧 | Go: v1.1 (in development) |
-| **Config file support** | ❌ | 🚧 | Go: v1.1 (in development) |
 | **Library import** | ✅ | ✅ | Use as dependency |
 | **Type safety** | Runtime | Compile-time | Go catches errors before deployment |
-| **Binary distribution** | ❌ | ✅ | Go compiles to single binary |
-| **Memory footprint** | ~30MB | ~5MB | Go binary overhead |
-| **Startup time** | ~100ms | ~1ms | Interpreted vs compiled |
-| **Dependencies** | 1 (`requests`) | 0 | Go uses only stdlib |
 
 ---
 
@@ -203,7 +197,7 @@ Both SDKs wrap the same ONES Spectrum-X API. For raw curl examples, see:
 
 | ONES API Version | Python SDK | Go SDK |
 |------------------|------------|---------|
-| 4.2.1 | ✅ v0.1.0 | ✅ v1.0.0 |
+| 4.2.1 | ✅ v1.0.0 | ✅ v1.0.0 |
 
 Both SDKs target **ONES 4.2.1**. 
 
@@ -226,8 +220,6 @@ See language-specific contribution guidelines:
 ---
 
 ## License
-
-Apache 2.0 — See [LICENSE](./LICENSE) for details.
 
 ---
 
