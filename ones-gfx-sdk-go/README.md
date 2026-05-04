@@ -652,23 +652,11 @@ err := client.Tenants.AllocateGPUs(ctx, ...,
 ## Known Limitations (v1.0)
 
 - **No login endpoint** — Partners supply tokens obtained out-of-band. Login support planned for v1.1.
-- **No unit tests included** — Test plan document available separately. Tests planned for v1.2.
 - **CLI not yet complete** — Core library is fully functional. CLI wrapper coming in v1.1.
 
----
-
-## Roadmap
-
-- **v1.0** (Current) — Core library, library-only usage
-- **v1.1** (Next) — CLI binary (`ones-gfx-sdk-mod`), config file support, JSON output
-- **v1.2** — Unit tests, integration tests, CI/CD
-- **v2.0** — Login/logout endpoints, context timeout propagation, retry policies
 
 ---
 
-## License
-
-Apache 2.0 — See [LICENSE](../LICENSE) for details.
 
 ---
 
