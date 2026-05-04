@@ -86,13 +86,13 @@ from ones_gfx import (
 BASE_URL = "https://10.4.5.76:8089"
 REFRESH_URL = "https://10.4.5.76:8089/refresh"
 
-ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJwZXJtaXNzaW9ucyI6WyJXUklURSIsIlJFQUQiXSwidHlwIjoiYWNjZXNzIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiYWM3OTNjNzMtM2IzYi00YTJiLWFkNjQtYzAxODY5YWFhNzg3IiwiaWF0IjoxNzc3MDI5OTAxLCJleHAiOjE3NzcxMTYzMDF9.WT5fb0m2YwAj6qPQ0h-dnnUTqqQ1vRJH6uAhrexGkoY"
-REFRESH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJ0eXAiOiJyZWZyZXNoIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiZmZkODRkMjctZmZkOS00NzE1LTllMDctZWUyM2QxZTNlZTU4IiwiaWF0IjoxNzc3MDI5OTAxLCJleHAiOjE3NzcwNDQzMDF9.DQy_H6H9FQYxElksqcZN_Hwk-8riFOwMHu030UPCTrw"
+ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJwZXJtaXNzaW9ucyI6WyJSRUFEIiwiV1JJVEUiXSwidHlwIjoiYWNjZXNzIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiNTQ5Zjg3OWQtNDA2Yi00MjdlLWI3ZjgtNDU1ZGVhMjNjOTczIiwiaWF0IjoxNzc3NTUwMDExLCJleHAiOjE3Nzc2MzY0MTF9.vbc1g-cxjzl-34tcNIWBXyiZ7BIJKef_KkqjAkJ2ShE"
+REFRESH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJ0eXAiOiJyZWZyZXNoIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiZTdlMjhkYjctNjI5OS00ZGU3LThmYzktM2VjMjU0ZjUxNjI1IiwiaWF0IjoxNzc3NTUwMDExLCJleHAiOjE3Nzc1NjQ0MTF9.uMKNHHi4FXtDSS2WCu-uShrLAkf0RxKWnyuqn7HA-EY"
 
 LOGIN_USERNAME = "superadmin"
 LOGIN_PASSWORD = "Admin@1234"
 
-FABRIC_NAME = "sdk"
+FABRIC_NAME = "sdk-ones"
 
 # A couple of sample server hostnames you expect to be available in the
 # fabric. The example will try to allocate then deallocate these.
@@ -314,6 +314,21 @@ def scenario_tenant_lifecycle(client: ONESClient, mode: OperationMode) -> None:
         refreshed = client.tenants.get(FABRIC_NAME, tenant_name)
         print(f"  Tenant now has servers: {refreshed.alloted_servers}")
 
+        # Peering after allocate so tenant VPC / NS path is live with GPUs attached.
+        peering_name = f"{tenant_name}-storage-route-leak"
+        vpc_name = _default_vpc_name(tenant_name)
+        peer_vpc_name = _default_peer_vpc_name()
+        print(
+            f"Creating VPC peering {peering_name!r} between {vpc_name!r} and {peer_vpc_name!r} (sync-only)..."
+        )
+        peering_result = client.peering.create(
+            fabric_name=FABRIC_NAME,
+            name=peering_name,
+            vpc_name=vpc_name,
+            peer_vpc_name=peer_vpc_name,
+        )
+        print(f"  -> response: {peering_result}")
+
         print(f"Deallocating GPUs {SAMPLE_SERVERS} ({label})...")
         deallocate_result = client.tenants.deallocate_gpus(
             fabric_name=FABRIC_NAME,
@@ -331,20 +346,6 @@ def scenario_tenant_lifecycle(client: ONESClient, mode: OperationMode) -> None:
                 return
         else:
             print("  -> deallocate done")
-
-        peering_name = f"{tenant_name}-storage-route-leak"
-        vpc_name = _default_vpc_name(tenant_name)
-        peer_vpc_name = _default_peer_vpc_name()
-        print(
-            f"Creating VPC peering {peering_name!r} between {vpc_name!r} and {peer_vpc_name!r} (sync-only)..."
-        )
-        peering_result = client.peering.create(
-            fabric_name=FABRIC_NAME,
-            name=peering_name,
-            vpc_name=vpc_name,
-            peer_vpc_name=peer_vpc_name,
-        )
-        print(f"  -> response: {peering_result}")
 
     print(f"Deleting tenant {tenant_name!r} ({label})...")
     delete_result = client.tenants.delete(

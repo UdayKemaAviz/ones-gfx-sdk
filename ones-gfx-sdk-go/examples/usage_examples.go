@@ -52,13 +52,13 @@ const (
 	baseURL    = "https://10.4.5.76:8089"
 	refreshURL = "https://10.4.5.76:8089/refresh"
 
-	accessToken  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJwZXJtaXNzaW9ucyI6WyJSRUFEIiwiV1JJVEUiXSwidHlwIjoiYWNjZXNzIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiNzRiZTJmOTktMGQyZS00Yzc2LWE4NmUtMDAyZTJlYjA1MGJmIiwiaWF0IjoxNzc3NTMyMzAzLCJleHAiOjE3Nzc2MTg3MDN9.7N0hPHZHRlBzjX_84p28tlwvdRE3cHH3rK3VEEnI3p8"
-	refreshToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJ0eXAiOiJyZWZyZXNoIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiNTA2YTBiYzItOGYwZi00OWQwLWIyMWQtZWZkNGNkMGZhMThjIiwiaWF0IjoxNzc3NTMyMzAzLCJleHAiOjE3Nzc1NDY3MDN9.Nb5brIZvp8Nm44A8o_d4PR6Mf5tjep13_gLXanizApg"
+	accessToken  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJwZXJtaXNzaW9ucyI6WyJXUklURSIsIlJFQUQiXSwidHlwIjoiYWNjZXNzIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiNDBmM2RkZTctNzMzZi00YWQxLTk0MzYtMmY2MWMwY2FjMThkIiwiaWF0IjoxNzc3ODg1NTkyLCJleHAiOjE3Nzc5NzE5OTJ9.7AaKjidz0CYYJ4Rhxz6IAQW4TVxdBe7HOcQwgOQHxgg"
+	refreshToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJ0eXAiOiJyZWZyZXNoIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiNDczMzY4ZmMtN2I4My00OWE1LTljZjAtMGQ3MzFiNDE4MmViIiwiaWF0IjoxNzc3ODg1NTkyLCJleHAiOjE3Nzc4OTk5OTJ9.wtG3l6ee12KJg2FXyqOE_LnEKhbjg5Nkb_Asg4WxuuQ "
 
 	loginUsername = "superadmin"
 	loginPassword = "Admin@1234"
 
-	fabricName = "sdk-ones"
+	fabricName = "test707"
 
 	// Webhook receiver URL for the async-webhook example. The SDK does not
 	// implement the receiver — point this at an HTTP endpoint you control.
@@ -403,6 +403,19 @@ func scenarioTenantLifecycle(client *sdk.Client, mode string) {
 			fmt.Printf("  Tenant now has servers: %v\n", refreshed.AllotedServers())
 		}
 
+		// --- VPC Peering (sync only): after allocate so tenant VPC is live with GPUs ---
+		peeringName := fmt.Sprintf("%s-storage-route-leak", tenantName)
+		vpcName := defaultVPCName(tenantName)
+		peerVPCName := defaultPeerVPCName()
+		fmt.Printf("Creating VPC peering %q between %q and %q (sync-only)...\n",
+			peeringName, vpcName, peerVPCName)
+		peeringResult, err := client.Peering.Create(ctx, fabricName, peeringName, vpcName, peerVPCName)
+		if err != nil {
+			fmt.Printf("  -> peering error: %v\n", err)
+		} else {
+			fmt.Printf("  -> response: %v\n", peeringResult)
+		}
+
 		// --- Deallocate GPUs ---
 		fmt.Printf("Deallocating GPUs %v (%s)...\n", sampleServers, label)
 
@@ -428,19 +441,6 @@ func scenarioTenantLifecycle(client *sdk.Client, mode string) {
 				return
 			}
 			fmt.Println("  -> deallocate done")
-		}
-
-		// --- VPC Peering (sync only) ---
-		peeringName := fmt.Sprintf("%s-storage-route-leak", tenantName)
-		vpcName := defaultVPCName(tenantName)
-		peerVPCName := defaultPeerVPCName()
-		fmt.Printf("Creating VPC peering %q between %q and %q (sync-only)...\n",
-			peeringName, vpcName, peerVPCName)
-		peeringResult, err := client.Peering.Create(ctx, fabricName, peeringName, vpcName, peerVPCName)
-		if err != nil {
-			fmt.Printf("  -> peering error: %v\n", err)
-		} else {
-			fmt.Printf("  -> response: %v\n", peeringResult)
 		}
 	}
 
