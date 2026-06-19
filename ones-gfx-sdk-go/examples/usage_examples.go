@@ -26,6 +26,7 @@ How to run
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -36,6 +37,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,32 +48,136 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// CONFIG — fill these in for your environment.
+// CONFIG — loaded from .env file or environment variables.
+// See ../.env.example for available configuration options.
 // ---------------------------------------------------------------------------
 
-const (
-	baseURL    = "https://10.4.5.76:8089"
-	refreshURL = "https://10.4.5.76:8089/refresh"
-
-	accessToken  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJwZXJtaXNzaW9ucyI6WyJXUklURSIsIlJFQUQiXSwidHlwIjoiYWNjZXNzIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiNDBmM2RkZTctNzMzZi00YWQxLTk0MzYtMmY2MWMwY2FjMThkIiwiaWF0IjoxNzc3ODg1NTkyLCJleHAiOjE3Nzc5NzE5OTJ9.7AaKjidz0CYYJ4Rhxz6IAQW4TVxdBe7HOcQwgOQHxgg"
-	refreshToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJ0eXAiOiJyZWZyZXNoIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiNDczMzY4ZmMtN2I4My00OWE1LTljZjAtMGQ3MzFiNDE4MmViIiwiaWF0IjoxNzc3ODg1NTkyLCJleHAiOjE3Nzc4OTk5OTJ9.wtG3l6ee12KJg2FXyqOE_LnEKhbjg5Nkb_Asg4WxuuQ "
-
-	loginUsername = "superadmin"
-	loginPassword = "Admin@1234"
-
-	fabricName = "test707"
-
-	// Webhook receiver URL for the async-webhook example. The SDK does not
-	// implement the receiver — point this at an HTTP endpoint you control.
-	webhookURL = "http://10.4.5.124:5000/test/webhook-receiver"
-
-	// Disable TLS verification only against dev/lab deployments with self-
-	// signed certs. In production, leave this as true or supply a CA path.
-	verifyTLS = false
-
-	// Sync operations can take several minutes (allocate/deallocate up to ~15 min).
-	defaultTimeoutS = 1200
+var (
+	baseURL    string
+	refreshURL string
+	accessToken  string
+	refreshToken string
+	loginUsername string
+	loginPassword string
+	fabricName string
+	webhookURL string
+	verifyTLS bool
+	defaultTimeoutS int
 )
+
+// loadEnv loads configuration from .env file or environment variables.
+func loadEnv() error {
+	// Try to load .env file from multiple locations
+	possiblePaths := []string{
+		".env",           // current directory
+		"examples/.env",  // examples subdirectory (if running from parent)
+		"../.env",        // parent directory
+		"../../.env",     // grandparent directory (repo root)
+	}
+
+	for _, envFile := range possiblePaths {
+		if info, err := os.Stat(envFile); err == nil && !info.IsDir() {
+			if err := loadEnvFile(envFile); err != nil {
+				log.Printf("Warning: could not load %s: %v (trying next path)\n", envFile, err)
+				continue
+			}
+			log.Printf("Loaded configuration from %s\n", envFile)
+			break
+		}
+	}
+
+	// Load from environment variables (these override .env file values)
+	baseURL = getEnv("BASE_URL", "")
+	refreshURL = getEnv("REFRESH_URL", "")
+	accessToken = getEnv("ACCESS_TOKEN", "")
+	refreshToken = getEnv("REFRESH_TOKEN", "")
+	loginUsername = getEnv("LOGIN_USERNAME", "")
+	loginPassword = getEnv("LOGIN_PASSWORD", "")
+	fabricName = getEnv("FABRIC_NAME", "")
+	webhookURL = getEnv("WEBHOOK_URL", "")
+	verifyTLS = getBoolEnv("VERIFY_TLS", false)
+	defaultTimeoutS = getIntEnv("DEFAULT_TIMEOUT_S", 1200)
+
+	// Validate required fields
+	if baseURL == "" {
+		return fmt.Errorf("BASE_URL environment variable not set (see ../../.env.example)")
+	}
+	if refreshURL == "" {
+		return fmt.Errorf("REFRESH_URL environment variable not set (see ../../.env.example)")
+	}
+	if accessToken == "" {
+		return fmt.Errorf("ACCESS_TOKEN environment variable not set (see ../../.env.example)")
+	}
+	if refreshToken == "" {
+		return fmt.Errorf("REFRESH_TOKEN environment variable not set (see ../../.env.example)")
+	}
+	if loginUsername == "" {
+		return fmt.Errorf("LOGIN_USERNAME environment variable not set (see ../../.env.example)")
+	}
+	if loginPassword == "" {
+		return fmt.Errorf("LOGIN_PASSWORD environment variable not set (see ../../.env.example)")
+	}
+	if fabricName == "" {
+		return fmt.Errorf("FABRIC_NAME environment variable not set (see ../../.env.example)")
+	}
+
+	return nil
+}
+
+// loadEnvFile parses a .env file and sets environment variables.
+func loadEnvFile(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		// Skip comments and empty lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			// Only set if not already in environment
+			if os.Getenv(key) == "" {
+				os.Setenv(key, value)
+			}
+		}
+	}
+	return scanner.Err()
+}
+
+// getEnv retrieves an environment variable with a default value.
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+// getIntEnv retrieves an environment variable as an integer.
+func getIntEnv(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intVal, err := strconv.Atoi(value); err == nil {
+			return intVal
+		}
+		log.Printf("Warning: invalid integer value for %s: %s\n", key, value)
+	}
+	return defaultValue
+}
+
+// getBoolEnv retrieves an environment variable as a boolean.
+func getBoolEnv(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		return strings.ToLower(value) == "true" || value == "1"
+	}
+	return defaultValue
+}
 
 // A couple of sample server hostnames you expect to be available in the
 // fabric. The example will try to allocate then deallocate these.
@@ -104,7 +211,7 @@ func buildClient() *sdk.Client {
 		baseURL,
 		auth,
 		ones_gfx.WithTLSVerify(verifyTLS),
-		ones_gfx.WithClientTimeout(defaultTimeoutS*time.Second),
+		ones_gfx.WithClientTimeout(time.Duration(defaultTimeoutS)*time.Second),
 	)
 }
 
@@ -163,7 +270,7 @@ func scenarioLogin(username, password string) {
 
 	loginURL := strings.TrimRight(baseURL, "/") + "/login"
 	httpClient := &http.Client{
-		Timeout: defaultTimeoutS * time.Second,
+		Timeout: time.Duration(defaultTimeoutS) * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: !verifyTLS,
@@ -444,6 +551,36 @@ func scenarioTenantLifecycle(client *sdk.Client, mode string) {
 		}
 	}
 
+	// --- Modify GPU Allocations (fine-grained, partial GPU allocation) ---
+	if len(sampleServers) > 0 {
+		fmt.Printf("Modifying GPU allocations on %s (%s)...\n", tenantName, label)
+
+		// Example: allocate specific GPUs (G0, G1, G2, G3) to a specific server.
+		// This is more granular than AllocateGPUs which allocates all GPUs on a server.
+		req := ones_gfx.GPUAllocationRequest{
+			Operation: ones_gfx.OperationAdd,
+			Suid: map[string]map[string]ones_gfx.ServerGPUs{
+				"0": {
+					"hgx-su00-h00": {GPUs: []string{"G0", "G1", "G2", "G3"}},
+				},
+			},
+		}
+
+		resp, err := client.Fabrics.ModifyGPUAllocations(ctx, fabricName, tenantName, req)
+		if err != nil {
+			fmt.Printf("  -> modify GPU allocations error: %v\n", err)
+		} else {
+			fmt.Printf("  -> status: %s\n", resp.Status)
+			if resp.OperationID != "" {
+				fmt.Printf("  -> operation id: %s (async)\n", resp.OperationID)
+				// In real usage, poll the operation to completion if needed
+			}
+			if resp.Message != "" {
+				fmt.Printf("  -> message: %s\n", resp.Message)
+			}
+		}
+	}
+
 	// --- Delete ---
 	fmt.Printf("Deleting tenant %q (%s)...\n", tenantName, label)
 
@@ -502,6 +639,7 @@ func scenarioTenantAction(
 	action string,
 	tenantNameOverride string,
 	servers []string,
+	shared bool,
 	peeringNameOverride string,
 	vpcNameOverride string,
 	peerVPCNameOverride string,
@@ -570,8 +708,11 @@ func scenarioTenantAction(
 			fmt.Println("No servers provided for allocate. Use --servers or update sampleServers.")
 			return
 		}
-		fmt.Printf("Allocating GPUs %v to %s (%s)...\n", srvs, tName, label)
-		serverSpecs := resources.ServerSpecsFromNames(srvs)
+		fmt.Printf("Allocating GPUs %v to %s (%s, shared=%v)...\n", srvs, tName, label, shared)
+		serverSpecs := make([]resources.ServerSpec, 0, len(srvs))
+		for _, serverName := range srvs {
+			serverSpecs = append(serverSpecs, resources.ServerSpec{ServerName: serverName, Shared: shared})
+		}
 		timeout500 := 500 * time.Second
 
 		if isAsync(mode) {
@@ -601,8 +742,11 @@ func scenarioTenantAction(
 			fmt.Println("No servers provided for deallocate. Use --servers or update sampleServers.")
 			return
 		}
-		fmt.Printf("Deallocating GPUs %v (%s)...\n", srvs, label)
-		serverSpecs := resources.ServerSpecsFromNames(srvs)
+		fmt.Printf("Deallocating GPUs %v (%s, shared=%v)...\n", srvs, label, shared)
+		serverSpecs := make([]resources.ServerSpec, 0, len(srvs))
+		for _, serverName := range srvs {
+			serverSpecs = append(serverSpecs, resources.ServerSpec{ServerName: serverName, Shared: shared})
+		}
 		timeout500 := 500 * time.Second
 
 		if isAsync(mode) {
@@ -725,15 +869,25 @@ func main() {
 	// activity (token refreshes, retry-on-401, etc.).
 	// log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	// Load configuration from .env file and environment variables
+	if err := loadEnv(); err != nil {
+		log.Fatalf("Configuration error: %v", err)
+	}
+
 	mode := flag.String("mode", "sync", "Tenant lifecycle mode: sync, async-poll, async-webhook")
-	action := flag.String("action", "lifecycle", "Action: lifecycle, read-only, login, create, allocate, deallocate, delete, vpcpeering")
+	action := flag.String("action", "lifecycle", "Action: lifecycle, read-only, login, create, allocate, deallocate, delete, vpcpeering, gpu-allocations")
 	tenantNameFlag := flag.String("tenant-name", "", "Override tenant name for create/delete/allocate/deallocate")
 	username := flag.String("username", "", "Username for login action (default: loginUsername)")
 	password := flag.String("password", "", "Password for login action (default: loginPassword)")
 	serversFlag := flag.String("servers", "", "Comma-separated server list for allocate/deallocate")
+	sharedFlag := flag.Bool("shared", false, "Set shared on allocate/deallocate server specs (e.g. --shared=true)")
 	peeringNameFlag := flag.String("peering-name", "", "Peering name for vpcpeering (default: <tenant>-storage-route-leak)")
 	vpcNameFlag := flag.String("vpc-name", "", "Tenant VPC name for vpcpeering (default: <tenant>-<fabric>-north-south)")
 	peerVPCNameFlag := flag.String("peer-vpc-name", "", "Peer VPC name for vpcpeering (default: <fabric>-Storage-VPC)")
+	gpuOperation := flag.String("gpu-operation", "ADD", "GPU allocation operation: ADD or DELETE (used with --action gpu-allocations)")
+	gpuHostname := flag.String("gpu-hostname", "", "Compute node hostname for gpu-allocations (e.g. hgx-su00-h00)")
+	gpuIDs := flag.String("gpu-ids", "G0,G1,G2,G3", "Comma-separated GPU IDs for gpu-allocations (e.g. G0,G1,G2,G3)")
+	gpuServerIndex := flag.String("gpu-server-index", "0", "Server index key in suid map (default: 0)")
 	flag.Parse()
 
 	// Validate mode
@@ -746,7 +900,7 @@ func main() {
 	validActions := map[string]bool{
 		"lifecycle": true, "read-only": true, "login": true,
 		"create": true, "allocate": true, "deallocate": true,
-		"delete": true, "vpcpeering": true,
+		"delete": true, "vpcpeering": true, "gpu-allocations": true,
 	}
 	if !validActions[*action] {
 		log.Fatalf("invalid action %q", *action)
@@ -772,6 +926,20 @@ func main() {
 		scenarioReadOnly(client)
 		scenarioTenantLifecycle(client, *mode)
 		scenarioErrorHandling(client)
+	} else if *action == "gpu-allocations" {
+		tName := *tenantNameFlag
+		if tName == "" {
+			log.Fatal("--tenant-name is required for gpu-allocations")
+		}
+		hostname := *gpuHostname
+		if hostname == "" {
+			if len(sampleServers) > 0 {
+				hostname = sampleServers[0]
+			} else {
+				log.Fatal("--gpu-hostname is required (or set sampleServers in config)")
+			}
+		}
+		scenarioGPUAllocations(client, tName, *gpuOperation, *gpuServerIndex, hostname, parseServers(*gpuIDs))
 	} else {
 		scenarioTenantAction(
 			client,
@@ -779,9 +947,43 @@ func main() {
 			*action,
 			*tenantNameFlag,
 			parseServers(*serversFlag),
+			*sharedFlag,
 			*peeringNameFlag,
 			*vpcNameFlag,
 			*peerVPCNameFlag,
 		)
+	}
+}
+
+// scenarioGPUAllocations calls POST /fabrics/{fabric}/tenants/{tenant}/gpuAllocations
+// with the given operation, server index, hostname, and GPU IDs.
+func scenarioGPUAllocations(client *sdk.Client, tenantName, operation, serverIndex, hostname string, gpuIDs []string) {
+	fmt.Printf("\n--- Scenario: gpu-allocations ---\n")
+	fmt.Printf("  fabric:   %s\n", fabricName)
+	fmt.Printf("  tenant:   %s\n", tenantName)
+	fmt.Printf("  op:       %s\n", operation)
+	fmt.Printf("  suid[%s][%s].gpus: %v\n", serverIndex, hostname, gpuIDs)
+
+	ctx := context.Background()
+	req := ones_gfx.GPUAllocationRequest{
+		Operation: ones_gfx.GPUOperation(operation),
+		Suid: map[string]map[string]ones_gfx.ServerGPUs{
+			serverIndex: {
+				hostname: {GPUs: gpuIDs},
+			},
+		},
+	}
+
+	resp, err := client.Fabrics.ModifyGPUAllocations(ctx, fabricName, tenantName, req)
+	if err != nil {
+		reportSDKError(err)
+		return
+	}
+	fmt.Printf("  -> status: %s\n", resp.Status)
+	if resp.OperationID != "" {
+		fmt.Printf("  -> operation id: %s\n", resp.OperationID)
+	}
+	if resp.Message != "" {
+		fmt.Printf("  -> message: %s\n", resp.Message)
 	}
 }
