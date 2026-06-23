@@ -175,8 +175,8 @@ per-GPU control via `POST /fabrics/{fabric}/tenants/{tenant}/gpuAllocations`.
 
 ```python
 from ones_gfx import ONESClient, JWTAuth
-from ones_gfx.models import GPUAllocationRequest, ServerGPUs
 
+auth = JWTAuth(access_token=..., refresh_token=..., refresh_url=...)
 with ONESClient(base_url=..., auth=auth) as client:
     # Map G0-G3 on hgx-su00-h00 (server index "0") to tenant-A
     result = client.fabrics.modify_gpu_allocations(
