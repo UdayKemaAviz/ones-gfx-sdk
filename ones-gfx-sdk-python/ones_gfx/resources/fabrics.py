@@ -64,4 +64,8 @@ class FabricsResource:
             return result
         if isinstance(result, str):
             return {"status": "success", "message": result}
-        return {}
+        if result is None:
+            return {"status": "success"}
+        raise TypeError(
+            f"unexpected response type for modify_gpu_allocations: {type(result).__name__}"
+        )
