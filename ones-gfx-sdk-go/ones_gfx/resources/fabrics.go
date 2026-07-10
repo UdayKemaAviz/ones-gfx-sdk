@@ -98,6 +98,10 @@ func (r *FabricsResource) ModifyGPUAllocations(
 		return nil, err
 	}
 
+	if result == nil {
+		return &ones_gfx.GPUAllocationResponse{Status: "success"}, nil
+	}
+
 	if msg, ok := result.(string); ok {
 		return &ones_gfx.GPUAllocationResponse{
 			Status:  "success",

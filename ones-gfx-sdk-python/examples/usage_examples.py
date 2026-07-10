@@ -70,19 +70,24 @@ import requests
 from urllib3.exceptions import InsecureRequestWarning
 
 try:
-	from dotenv import load_dotenv
+    from dotenv import load_dotenv
 except ImportError:
-	def load_dotenv(path=None, verbose=False):
-		"""Fallback if python-dotenv is not installed."""
-		if path and os.path.exists(path):
-			with open(path) as f:
-				for line in f:
-					line = line.strip()
-					if line and not line.startswith("#"):
-						if "=" in line:
-							key, value = line.split("=", 1)
-							if os.environ.get(key) is None:
-								os.environ[key] = value
+    def load_dotenv(path=None, verbose: bool = False) -> None:
+        """Fallback .env loader if python-dotenv is not installed."""
+        if not path:
+            return
+        path_str = os.fspath(path)
+        if not os.path.exists(path_str):
+            return
+        with open(path_str, encoding="utf-8") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"\'')
+                os.environ.setdefault(key, value)
 
 from ones_gfx import (
     AuthenticationError,
