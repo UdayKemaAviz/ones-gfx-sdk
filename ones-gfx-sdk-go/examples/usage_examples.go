@@ -94,7 +94,7 @@ func loadEnv() error {
 	loginUsername = getEnv("LOGIN_USERNAME", "")
 	loginPassword = getEnv("LOGIN_PASSWORD", "")
 	fabricName = getEnv("FABRIC_NAME", "")
-	webhookURL = getEnv("WEBHOOK_URL", "")
+	webhookURL = getEnv("WEBHOOK_URL", "http://your_webhook_endpoint:5000/test/webhook-receiver")
 	verifyTLS = getBoolEnv("VERIFY_TLS", false)
 	defaultTimeoutS = getIntEnv("DEFAULT_TIMEOUT_S", 1200)
 

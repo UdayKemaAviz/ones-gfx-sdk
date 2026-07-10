@@ -107,48 +107,48 @@ from ones_gfx import (
 # ---------------------------------------------------------------------------
 
 def load_config():
-	"""Load configuration from .env file and environment variables."""
-	# Try to load .env file from repo root
-	env_file = Path("../.env")
-	if not env_file.exists():
-		env_file = Path("../../.env")
-	
-	if env_file.exists():
-		load_dotenv(env_file, verbose=False)
-	
-	# Helper function to get env vars with defaults
-	def get_env(key, default=None):
-		value = os.environ.get(key, default)
-		if value is None:
-			raise ValueError(f"{key} environment variable not set (see ../../.env.example)")
-		return value
-	
-	def get_bool_env(key, default=False):
-		value = os.environ.get(key, str(default)).lower()
-		return value in ("true", "1", "yes")
-	
-	def get_int_env(key, default=1200):
-		try:
-			return int(os.environ.get(key, default))
-		except ValueError:
-			return default
-	
-	try:
-		config = {
-			"BASE_URL": get_env("BASE_URL"),
-			"REFRESH_URL": get_env("REFRESH_URL"),
-			"ACCESS_TOKEN": get_env("ACCESS_TOKEN"),
-			"REFRESH_TOKEN": get_env("REFRESH_TOKEN"),
-			"LOGIN_USERNAME": get_env("LOGIN_USERNAME"),
-			"LOGIN_PASSWORD": get_env("LOGIN_PASSWORD"),
-			"FABRIC_NAME": get_env("FABRIC_NAME"),
-			"WEBHOOK_URL": os.environ.get("WEBHOOK_URL", "http://your_webhook_endpoint:5000/test/webhook-receiver"),
-			"VERIFY_TLS": get_bool_env("VERIFY_TLS", False),
-			"DEFAULT_TIMEOUT_S": get_int_env("DEFAULT_TIMEOUT_S", 1200),
-		}
-		return config
-	except ValueError as e:
-		raise RuntimeError(f"Configuration error: {e}")
+    """Load configuration from .env file and environment variables."""
+    # Try to load .env file relative to this source file (works regardless of CWD)
+    env_file = Path(__file__).resolve().parents[2] / ".env"
+    if not env_file.exists():
+        env_file = Path(__file__).resolve().parents[1] / ".env"
+
+    if env_file.exists():
+        load_dotenv(env_file, verbose=False)
+
+    # Helper function to get env vars with defaults
+    def get_env(key, default=None):
+        value = os.environ.get(key, default)
+        if value is None:
+            raise ValueError(f"{key} environment variable not set (see ../../.env.example)")
+        return value
+
+    def get_bool_env(key, default=False):
+        value = os.environ.get(key, str(default)).lower()
+        return value in ("true", "1", "yes")
+
+    def get_int_env(key, default=1200):
+        try:
+            return int(os.environ.get(key, default))
+        except ValueError:
+            return default
+
+    try:
+        config = {
+            "BASE_URL": get_env("BASE_URL"),
+            "REFRESH_URL": get_env("REFRESH_URL"),
+            "ACCESS_TOKEN": get_env("ACCESS_TOKEN"),
+            "REFRESH_TOKEN": get_env("REFRESH_TOKEN"),
+            "LOGIN_USERNAME": get_env("LOGIN_USERNAME"),
+            "LOGIN_PASSWORD": get_env("LOGIN_PASSWORD"),
+            "FABRIC_NAME": get_env("FABRIC_NAME"),
+            "WEBHOOK_URL": os.environ.get("WEBHOOK_URL", "http://your_webhook_endpoint:5000/test/webhook-receiver"),
+            "VERIFY_TLS": get_bool_env("VERIFY_TLS", False),
+            "DEFAULT_TIMEOUT_S": get_int_env("DEFAULT_TIMEOUT_S", 1200),
+        }
+        return config
+    except ValueError as e:
+        raise RuntimeError(f"Configuration error: {e}")
 
 # Load configuration
 try:
@@ -173,7 +173,7 @@ SAMPLE_SERVERS = ["hgx-su00-h00"]
 
 # Webhook receiver URL for the async-webhook example. The SDK does not
 # implement the receiver — point this at an HTTP endpoint you control.
-WEBHOOK_URL = "http://10.4.5.87:5000/test/webhook-receiver"
+# WEBHOOK_URL is configured via .env / environment variables (see load_config above).
 
 # Disable TLS verification only against dev/lab deployments with self-
 # signed certs. In production, leave this as True or supply a CA path.
