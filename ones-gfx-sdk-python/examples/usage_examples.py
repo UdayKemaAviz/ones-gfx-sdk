@@ -176,11 +176,11 @@ SAMPLE_SERVERS = ["hgx-su00-h00"]
 # WEBHOOK_URL is configured via .env / environment variables (see load_config above).
 
 # Disable TLS verification only against dev/lab deployments with self-
-# signed certs. In production, leave this as True or supply a CA path.
-VERIFY_TLS: bool | str = False
+# signed certs. In production, leave this enabled. VERIFY_TLS is configured
+# via .env / environment variables (see load_config above).
 
 # Sync operations can take several minutes (allocate/deallocate up to ~15 min).
-DEFAULT_TIMEOUT_S = 1200
+# DEFAULT_TIMEOUT_S is configured via .env / environment variables.
 
 # Silence noisy TLS warnings when intentionally disabling verification.
 if VERIFY_TLS is False:
@@ -464,7 +464,19 @@ def scenario_gpu_allocations(
     hostname: str,
     gpu_ids: list[str],
 ) -> None:
-    """Call POST /fabrics/{fabric}/tenants/{tenant}/gpuAllocations directly."""
+    """Call POST /fabrics/{fabric}/tenants/{tenant}/gpuAllocations directly.
+
+    This endpoint performs fine-grained GPU mapping on a shared fabric server:
+    it allocates (ADD) or deallocates (DELETE) the given GPU IDs for the target
+    tenant.
+
+    Parameters:
+        tenant_name: Tenant that will receive or release the GPUs.
+        operation: "ADD" to allocate GPUs, "DELETE" to remove them.
+        server_index: String key used in the `suid` map (for example "0").
+        hostname: Compute node hostname inside the selected server index.
+        gpu_ids: Explicit GPU identifiers (for example ["G0", "G1"]).
+    """
     print("\n--- Scenario: gpu-allocations ---")
     print(f"  fabric:   {FABRIC_NAME}")
     print(f"  tenant:   {tenant_name}")

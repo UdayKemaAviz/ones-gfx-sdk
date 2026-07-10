@@ -955,8 +955,18 @@ func main() {
 	}
 }
 
-// scenarioGPUAllocations calls POST /fabrics/{fabric}/tenants/{tenant}/gpuAllocations
-// with the given operation, server index, hostname, and GPU IDs.
+// scenarioGPUAllocations calls POST /fabrics/{fabric}/tenants/{tenant}/gpuAllocations.
+//
+// This endpoint performs fine-grained GPU mapping on a shared server:
+// operation ADD allocates the listed GPU IDs to the tenant, while DELETE
+// removes those GPU assignments.
+//
+// Parameters:
+//   - tenantName: target tenant that receives or releases GPUs.
+//   - operation: ADD to allocate GPUs, DELETE to deallocate.
+//   - serverIndex: suid map key (for example "0").
+//   - hostname: compute node hostname under the selected server index.
+//   - gpuIDs: explicit GPU IDs to map (for example []string{"G0", "G1"}).
 func scenarioGPUAllocations(client *sdk.Client, tenantName, operation, serverIndex, hostname string, gpuIDs []string) {
 	fmt.Printf("\n--- Scenario: gpu-allocations ---\n")
 	fmt.Printf("  fabric:   %s\n", fabricName)
