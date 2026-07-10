@@ -26,7 +26,6 @@ How to run
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -37,8 +36,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -48,136 +45,32 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// CONFIG — loaded from .env file or environment variables.
-// See ../.env.example for available configuration options.
+// CONFIG — fill these in for your environment.
 // ---------------------------------------------------------------------------
 
-var (
-	baseURL    string
-	refreshURL string
-	accessToken  string
-	refreshToken string
-	loginUsername string
-	loginPassword string
-	fabricName string
-	webhookURL string
-	verifyTLS bool
-	defaultTimeoutS int
+const (
+	baseURL    = "https://10.4.5.76:8089"
+	refreshURL = "https://10.4.5.76:8089/refresh"
+
+	accessToken  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJwZXJtaXNzaW9ucyI6WyJXUklURSIsIlJFQUQiXSwidHlwIjoiYWNjZXNzIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiNDBmM2RkZTctNzMzZi00YWQxLTk0MzYtMmY2MWMwY2FjMThkIiwiaWF0IjoxNzc3ODg1NTkyLCJleHAiOjE3Nzc5NzE5OTJ9.7AaKjidz0CYYJ4Rhxz6IAQW4TVxdBe7HOcQwgOQHxgg"
+	refreshToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJ0eXAiOiJyZWZyZXNoIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiNDczMzY4ZmMtN2I4My00OWE1LTljZjAtMGQ3MzFiNDE4MmViIiwiaWF0IjoxNzc3ODg1NTkyLCJleHAiOjE3Nzc4OTk5OTJ9.wtG3l6ee12KJg2FXyqOE_LnEKhbjg5Nkb_Asg4WxuuQ "
+
+	loginUsername = "superadmin"
+	loginPassword = "Admin@1234"
+
+	fabricName = "test707"
+
+	// Webhook receiver URL for the async-webhook example. The SDK does not
+	// implement the receiver — point this at an HTTP endpoint you control.
+	webhookURL = "http://10.4.5.124:5000/test/webhook-receiver"
+
+	// Disable TLS verification only against dev/lab deployments with self-
+	// signed certs. In production, leave this as true or supply a CA path.
+	verifyTLS = false
+
+	// Sync operations can take several minutes (allocate/deallocate up to ~15 min).
+	defaultTimeoutS = 1200
 )
-
-// loadEnv loads configuration from .env file or environment variables.
-func loadEnv() error {
-	// Try to load .env file from multiple locations
-	possiblePaths := []string{
-		".env",           // current directory
-		"examples/.env",  // examples subdirectory (if running from parent)
-		"../.env",        // parent directory
-		"../../.env",     // grandparent directory (repo root)
-	}
-
-	for _, envFile := range possiblePaths {
-		if info, err := os.Stat(envFile); err == nil && !info.IsDir() {
-			if err := loadEnvFile(envFile); err != nil {
-				log.Printf("Warning: could not load %s: %v (trying next path)\n", envFile, err)
-				continue
-			}
-			log.Printf("Loaded configuration from %s\n", envFile)
-			break
-		}
-	}
-
-	// Load from environment variables (these override .env file values)
-	baseURL = getEnv("BASE_URL", "")
-	refreshURL = getEnv("REFRESH_URL", "")
-	accessToken = getEnv("ACCESS_TOKEN", "")
-	refreshToken = getEnv("REFRESH_TOKEN", "")
-	loginUsername = getEnv("LOGIN_USERNAME", "")
-	loginPassword = getEnv("LOGIN_PASSWORD", "")
-	fabricName = getEnv("FABRIC_NAME", "")
-	webhookURL = getEnv("WEBHOOK_URL", "http://your_webhook_endpoint:5000/test/webhook-receiver")
-	verifyTLS = getBoolEnv("VERIFY_TLS", false)
-	defaultTimeoutS = getIntEnv("DEFAULT_TIMEOUT_S", 1200)
-
-	// Validate required fields
-	if baseURL == "" {
-		return fmt.Errorf("BASE_URL environment variable not set (see ../../.env.example)")
-	}
-	if refreshURL == "" {
-		return fmt.Errorf("REFRESH_URL environment variable not set (see ../../.env.example)")
-	}
-	if accessToken == "" {
-		return fmt.Errorf("ACCESS_TOKEN environment variable not set (see ../../.env.example)")
-	}
-	if refreshToken == "" {
-		return fmt.Errorf("REFRESH_TOKEN environment variable not set (see ../../.env.example)")
-	}
-	if loginUsername == "" {
-		return fmt.Errorf("LOGIN_USERNAME environment variable not set (see ../../.env.example)")
-	}
-	if loginPassword == "" {
-		return fmt.Errorf("LOGIN_PASSWORD environment variable not set (see ../../.env.example)")
-	}
-	if fabricName == "" {
-		return fmt.Errorf("FABRIC_NAME environment variable not set (see ../../.env.example)")
-	}
-
-	return nil
-}
-
-// loadEnvFile parses a .env file and sets environment variables.
-func loadEnvFile(filename string) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		// Skip comments and empty lines
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
-			// Only set if not already in environment
-			if os.Getenv(key) == "" {
-				os.Setenv(key, value)
-			}
-		}
-	}
-	return scanner.Err()
-}
-
-// getEnv retrieves an environment variable with a default value.
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
-// getIntEnv retrieves an environment variable as an integer.
-func getIntEnv(key string, defaultValue int) int {
-	if value := os.Getenv(key); value != "" {
-		if intVal, err := strconv.Atoi(value); err == nil {
-			return intVal
-		}
-		log.Printf("Warning: invalid integer value for %s: %s\n", key, value)
-	}
-	return defaultValue
-}
-
-// getBoolEnv retrieves an environment variable as a boolean.
-func getBoolEnv(key string, defaultValue bool) bool {
-	if value := os.Getenv(key); value != "" {
-		return strings.ToLower(value) == "true" || value == "1"
-	}
-	return defaultValue
-}
 
 // A couple of sample server hostnames you expect to be available in the
 // fabric. The example will try to allocate then deallocate these.
@@ -868,11 +761,6 @@ func main() {
 	// Turn on debug logging if you want to see the SDK's internal HTTP
 	// activity (token refreshes, retry-on-401, etc.).
 	// log.SetFlags(log.LstdFlags | log.Lshortfile)
-
-	// Load configuration from .env file and environment variables
-	if err := loadEnv(); err != nil {
-		log.Fatalf("Configuration error: %v", err)
-	}
 
 	mode := flag.String("mode", "sync", "Tenant lifecycle mode: sync, async-poll, async-webhook")
 	action := flag.String("action", "lifecycle", "Action: lifecycle, read-only, login, create, allocate, deallocate, delete, vpcpeering, gpu-allocations")

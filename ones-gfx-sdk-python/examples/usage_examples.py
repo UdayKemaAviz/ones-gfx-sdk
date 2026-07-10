@@ -63,31 +63,9 @@ import logging
 import time
 import warnings
 
-from pathlib import Path
-
 import requests
 
 from urllib3.exceptions import InsecureRequestWarning
-
-try:
-    from dotenv import load_dotenv
-except ImportError:
-    def load_dotenv(path=None, verbose: bool = False) -> None:
-        """Fallback .env loader if python-dotenv is not installed."""
-        if not path:
-            return
-        path_str = os.fspath(path)
-        if not os.path.exists(path_str):
-            return
-        with open(path_str, encoding="utf-8") as f:
-            for raw in f:
-                line = raw.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                key, value = line.split("=", 1)
-                key = key.strip()
-                value = value.strip().strip('"\'')
-                os.environ.setdefault(key, value)
 
 from ones_gfx import (
     AuthenticationError,
@@ -102,70 +80,19 @@ from ones_gfx import (
 )
 
 # ---------------------------------------------------------------------------
-# CONFIG — loaded from .env file or environment variables.
-# See ../../.env.example for available configuration options.
+# CONFIG — fill these in for your environment.
 # ---------------------------------------------------------------------------
 
-def load_config():
-    """Load configuration from .env file and environment variables."""
-    # Try to load .env file relative to this source file (works regardless of CWD)
-    env_file = Path(__file__).resolve().parents[2] / ".env"
-    if not env_file.exists():
-        env_file = Path(__file__).resolve().parents[1] / ".env"
+BASE_URL = "https://10.4.5.76:8089"
+REFRESH_URL = "https://10.4.5.76:8089/refresh"
 
-    if env_file.exists():
-        load_dotenv(env_file, verbose=False)
+ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJwZXJtaXNzaW9ucyI6WyJSRUFEIiwiV1JJVEUiXSwidHlwIjoiYWNjZXNzIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiNTQ5Zjg3OWQtNDA2Yi00MjdlLWI3ZjgtNDU1ZGVhMjNjOTczIiwiaWF0IjoxNzc3NTUwMDExLCJleHAiOjE3Nzc2MzY0MTF9.vbc1g-cxjzl-34tcNIWBXyiZ7BIJKef_KkqjAkJ2ShE"
+REFRESH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJ0eXAiOiJyZWZyZXNoIiwiaXNzIjoib25lcy1mbSIsImF1ZCI6Im9uZXMtZm0tY2xpZW50IiwianRpIjoiZTdlMjhkYjctNjI5OS00ZGU3LThmYzktM2VjMjU0ZjUxNjI1IiwiaWF0IjoxNzc3NTUwMDExLCJleHAiOjE3Nzc1NjQ0MTF9.uMKNHHi4FXtDSS2WCu-uShrLAkf0RxKWnyuqn7HA-EY"
 
-    # Helper function to get env vars with defaults
-    def get_env(key, default=None):
-        value = os.environ.get(key, default)
-        if value is None:
-            raise ValueError(f"{key} environment variable not set (see ../../.env.example)")
-        return value
+LOGIN_USERNAME = "superadmin"
+LOGIN_PASSWORD = "Admin@1234"
 
-    def get_bool_env(key, default=False):
-        value = os.environ.get(key, str(default)).lower()
-        return value in ("true", "1", "yes")
-
-    def get_int_env(key, default=1200):
-        try:
-            return int(os.environ.get(key, default))
-        except ValueError:
-            return default
-
-    try:
-        config = {
-            "BASE_URL": get_env("BASE_URL"),
-            "REFRESH_URL": get_env("REFRESH_URL"),
-            "ACCESS_TOKEN": get_env("ACCESS_TOKEN"),
-            "REFRESH_TOKEN": get_env("REFRESH_TOKEN"),
-            "LOGIN_USERNAME": get_env("LOGIN_USERNAME"),
-            "LOGIN_PASSWORD": get_env("LOGIN_PASSWORD"),
-            "FABRIC_NAME": get_env("FABRIC_NAME"),
-            "WEBHOOK_URL": os.environ.get("WEBHOOK_URL", "http://your_webhook_endpoint:5000/test/webhook-receiver"),
-            "VERIFY_TLS": get_bool_env("VERIFY_TLS", False),
-            "DEFAULT_TIMEOUT_S": get_int_env("DEFAULT_TIMEOUT_S", 1200),
-        }
-        return config
-    except ValueError as e:
-        raise RuntimeError(f"Configuration error: {e}")
-
-# Load configuration
-try:
-	_CONFIG = load_config()
-	BASE_URL = _CONFIG["BASE_URL"]
-	REFRESH_URL = _CONFIG["REFRESH_URL"]
-	ACCESS_TOKEN = _CONFIG["ACCESS_TOKEN"]
-	REFRESH_TOKEN = _CONFIG["REFRESH_TOKEN"]
-	LOGIN_USERNAME = _CONFIG["LOGIN_USERNAME"]
-	LOGIN_PASSWORD = _CONFIG["LOGIN_PASSWORD"]
-	FABRIC_NAME = _CONFIG["FABRIC_NAME"]
-	WEBHOOK_URL = _CONFIG["WEBHOOK_URL"]
-	VERIFY_TLS = _CONFIG["VERIFY_TLS"]
-	DEFAULT_TIMEOUT_S = _CONFIG["DEFAULT_TIMEOUT_S"]
-except RuntimeError as e:
-	print(f"Error: {e}")
-	sys.exit(1)
+FABRIC_NAME = "sdk-ones"
 
 # A couple of sample server hostnames you expect to be available in the
 # fabric. The example will try to allocate then deallocate these.
@@ -173,14 +100,14 @@ SAMPLE_SERVERS = ["hgx-su00-h00"]
 
 # Webhook receiver URL for the async-webhook example. The SDK does not
 # implement the receiver — point this at an HTTP endpoint you control.
-# WEBHOOK_URL is configured via .env / environment variables (see load_config above).
+WEBHOOK_URL = "http://10.4.5.124:5000/test/webhook-receiver"
 
 # Disable TLS verification only against dev/lab deployments with self-
-# signed certs. In production, leave this enabled. VERIFY_TLS is configured
-# via .env / environment variables (see load_config above).
+# signed certs. In production, leave this as True or supply a CA path.
+VERIFY_TLS: bool | str = False
 
 # Sync operations can take several minutes (allocate/deallocate up to ~15 min).
-# DEFAULT_TIMEOUT_S is configured via .env / environment variables.
+DEFAULT_TIMEOUT_S = 1200
 
 # Silence noisy TLS warnings when intentionally disabling verification.
 if VERIFY_TLS is False:
