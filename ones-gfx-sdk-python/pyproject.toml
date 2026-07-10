@@ -36,9 +36,6 @@ dev = [
     "pytest>=7",
     "ruff>=0.1",
 ]
-examples = [
-    "python-dotenv>=1.0",
-]
 
 [project.urls]
 Homepage = "https://github.com/aviznetworks/ones-gfx-sdk"
