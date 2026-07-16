@@ -247,6 +247,7 @@ fmt.Printf("status=%s  msg=%s\n", resp.Status, resp.Message)
 **Notes:**
 - The server must already be attached to the tenant via `AllocateGPUs` before mapping individual GPUs.
 - Remove per-GPU mappings with `OperationDelete` before calling `DeallocateGPUs` to detach the server.
+- This endpoint is valid only for externally managed fabrics; on ONES-controlled fabrics it returns `409 FABRIC_NOT_EXTERNALLY_MANAGED` (use the tenant-update flow instead).
 - Multiple tenants can share the same physical server (e.g. G0–G3 → tenant-A, G4–G7 → tenant-B) when the server is attached with `Shared: true`.
 
 ---

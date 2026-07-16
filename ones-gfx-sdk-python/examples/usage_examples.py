@@ -314,6 +314,26 @@ def scenario_tenant_lifecycle(client: ONESClient, mode: OperationMode) -> None:
         refreshed = client.tenants.get(FABRIC_NAME, tenant_name)
         print(f"  Tenant now has servers: {refreshed.alloted_servers}")
 
+        # --- Partial GPU allocation (fine-grained suid addressing): ADD after allocate ---
+        print(f"Modifying GPU allocations (ADD) on {tenant_name} ({label})...")
+        # This is more granular than allocate_gpus: targets specific GPU IDs
+        # on a specific server rather than allocating all GPUs on a server.
+        gpu_alloc_add_result = client.fabrics.modify_gpu_allocations(
+            fabric_name=FABRIC_NAME,
+            tenant_name=tenant_name,
+            operation="ADD",
+            suid={
+                "0": {
+                    SAMPLE_SERVERS[0]: {"gpus": ["G0", "G1", "G2", "G3"]},
+                }
+            },
+        )
+        print(f"  -> status: {gpu_alloc_add_result.get('status')}")
+        if gpu_alloc_add_result.get("operationId"):
+            print(f"  -> operation id: {gpu_alloc_add_result['operationId']} (async)")
+        if gpu_alloc_add_result.get("message"):
+            print(f"  -> message: {gpu_alloc_add_result['message']}")
+
         # Peering after allocate so tenant VPC / NS path is live with GPUs attached.
         peering_name = f"{tenant_name}-storage-route-leak"
         vpc_name = _default_vpc_name(tenant_name)
@@ -328,6 +348,24 @@ def scenario_tenant_lifecycle(client: ONESClient, mode: OperationMode) -> None:
             peer_vpc_name=peer_vpc_name,
         )
         print(f"  -> response: {peering_result}")
+
+        # --- Partial GPU allocation cleanup: DELETE before deallocate ---
+        print(f"Modifying GPU allocations (DELETE) on {tenant_name} ({label})...")
+        gpu_alloc_delete_result = client.fabrics.modify_gpu_allocations(
+            fabric_name=FABRIC_NAME,
+            tenant_name=tenant_name,
+            operation="DELETE",
+            suid={
+                "0": {
+                    SAMPLE_SERVERS[0]: {"gpus": ["G0", "G1", "G2", "G3"]},
+                }
+            },
+        )
+        print(f"  -> status: {gpu_alloc_delete_result.get('status')}")
+        if gpu_alloc_delete_result.get("operationId"):
+            print(f"  -> operation id: {gpu_alloc_delete_result['operationId']} (async)")
+        if gpu_alloc_delete_result.get("message"):
+            print(f"  -> message: {gpu_alloc_delete_result['message']}")
 
         print(f"Deallocating GPUs {SAMPLE_SERVERS} ({label})...")
         deallocate_result = client.tenants.deallocate_gpus(
@@ -346,26 +384,6 @@ def scenario_tenant_lifecycle(client: ONESClient, mode: OperationMode) -> None:
                 return
         else:
             print("  -> deallocate done")
-
-        # --- Partial GPU allocation (fine-grained suid addressing) ---
-        print(f"Modifying GPU allocations on {tenant_name} ({label})...")
-        # This is more granular than allocate_gpus: targets specific GPU IDs
-        # on a specific server rather than allocating all GPUs on a server.
-        gpu_alloc_result = client.fabrics.modify_gpu_allocations(
-            fabric_name=FABRIC_NAME,
-            tenant_name=tenant_name,
-            operation="ADD",
-            suid={
-                "0": {
-                    "hgx-su00-h00": {"gpus": ["G0", "G1", "G2", "G3"]},
-                }
-            },
-        )
-        print(f"  -> status: {gpu_alloc_result.get('status')}")
-        if gpu_alloc_result.get("operationId"):
-            print(f"  -> operation id: {gpu_alloc_result['operationId']} (async)")
-        if gpu_alloc_result.get("message"):
-            print(f"  -> message: {gpu_alloc_result['message']}")
 
     print(f"Deleting tenant {tenant_name!r} ({label})...")
     delete_result = client.tenants.delete(

@@ -403,6 +403,34 @@ func scenarioTenantLifecycle(client *sdk.Client, mode string) {
 			fmt.Printf("  Tenant now has servers: %v\n", refreshed.AllotedServers())
 		}
 
+		// --- Modify GPU Allocations (fine-grained, partial GPU allocation) ---
+		fmt.Printf("Modifying GPU allocations (ADD) on %s (%s)...\n", tenantName, label)
+
+		// Example: allocate specific GPUs (G0, G1, G2, G3) to a specific server.
+		// This is more granular than AllocateGPUs which allocates all GPUs on a server.
+		addReq := ones_gfx.GPUAllocationRequest{
+			Operation: ones_gfx.OperationAdd,
+			Suid: map[string]map[string]ones_gfx.ServerGPUs{
+				"0": {
+					sampleServers[0]: {GPUs: []string{"G0", "G1", "G2", "G3"}},
+				},
+			},
+		}
+
+		addResp, err := client.Fabrics.ModifyGPUAllocations(ctx, fabricName, tenantName, addReq)
+		if err != nil {
+			fmt.Printf("  -> modify GPU allocations (ADD) error: %v\n", err)
+		} else {
+			fmt.Printf("  -> status: %s\n", addResp.Status)
+			if addResp.OperationID != "" {
+				fmt.Printf("  -> operation id: %s (async)\n", addResp.OperationID)
+				// In real usage, poll the operation to completion if needed
+			}
+			if addResp.Message != "" {
+				fmt.Printf("  -> message: %s\n", addResp.Message)
+			}
+		}
+
 		// --- VPC Peering (sync only): after allocate so tenant VPC is live with GPUs ---
 		peeringName := fmt.Sprintf("%s-storage-route-leak", tenantName)
 		vpcName := defaultVPCName(tenantName)
@@ -414,6 +442,30 @@ func scenarioTenantLifecycle(client *sdk.Client, mode string) {
 			fmt.Printf("  -> peering error: %v\n", err)
 		} else {
 			fmt.Printf("  -> response: %v\n", peeringResult)
+		}
+
+		fmt.Printf("Modifying GPU allocations (DELETE) on %s (%s)...\n", tenantName, label)
+		delReq := ones_gfx.GPUAllocationRequest{
+			Operation: ones_gfx.OperationDelete,
+			Suid: map[string]map[string]ones_gfx.ServerGPUs{
+				"0": {
+					sampleServers[0]: {GPUs: []string{"G0", "G1", "G2", "G3"}},
+				},
+			},
+		}
+
+		delResp, err := client.Fabrics.ModifyGPUAllocations(ctx, fabricName, tenantName, delReq)
+		if err != nil {
+			fmt.Printf("  -> modify GPU allocations (DELETE) error: %v\n", err)
+		} else {
+			fmt.Printf("  -> status: %s\n", delResp.Status)
+			if delResp.OperationID != "" {
+				fmt.Printf("  -> operation id: %s (async)\n", delResp.OperationID)
+				// In real usage, poll the operation to completion if needed
+			}
+			if delResp.Message != "" {
+				fmt.Printf("  -> message: %s\n", delResp.Message)
+			}
 		}
 
 		// --- Deallocate GPUs ---
@@ -441,36 +493,6 @@ func scenarioTenantLifecycle(client *sdk.Client, mode string) {
 				return
 			}
 			fmt.Println("  -> deallocate done")
-		}
-	}
-
-	// --- Modify GPU Allocations (fine-grained, partial GPU allocation) ---
-	if len(sampleServers) > 0 {
-		fmt.Printf("Modifying GPU allocations on %s (%s)...\n", tenantName, label)
-
-		// Example: allocate specific GPUs (G0, G1, G2, G3) to a specific server.
-		// This is more granular than AllocateGPUs which allocates all GPUs on a server.
-		req := ones_gfx.GPUAllocationRequest{
-			Operation: ones_gfx.OperationAdd,
-			Suid: map[string]map[string]ones_gfx.ServerGPUs{
-				"0": {
-					"hgx-su00-h00": {GPUs: []string{"G0", "G1", "G2", "G3"}},
-				},
-			},
-		}
-
-		resp, err := client.Fabrics.ModifyGPUAllocations(ctx, fabricName, tenantName, req)
-		if err != nil {
-			fmt.Printf("  -> modify GPU allocations error: %v\n", err)
-		} else {
-			fmt.Printf("  -> status: %s\n", resp.Status)
-			if resp.OperationID != "" {
-				fmt.Printf("  -> operation id: %s (async)\n", resp.OperationID)
-				// In real usage, poll the operation to completion if needed
-			}
-			if resp.Message != "" {
-				fmt.Printf("  -> message: %s\n", resp.Message)
-			}
 		}
 	}
 

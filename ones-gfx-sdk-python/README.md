@@ -195,6 +195,7 @@ with ONESClient(base_url=..., auth=auth) as client:
 **Notes:**
 - The server must already be attached to the tenant via `allocate_gpus` before mapping individual GPUs.
 - Remove per-GPU mappings with `operation="DELETE"` before calling `deallocate_gpus` to detach the server.
+- This endpoint is valid only for externally managed fabrics; on ONES-controlled fabrics it returns `409 FABRIC_NOT_EXTERNALLY_MANAGED` (use the tenant-update flow instead).
 - Multiple tenants can share the same physical server (e.g. G0–G3 → tenant-A, G4–G7 → tenant-B) when the server is attached with `shared=True`.
 
 ---
